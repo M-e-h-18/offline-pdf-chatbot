@@ -1,7 +1,7 @@
 torch
 transformers
 sentence-transformers
-faiss-gpu
+faiss-cpu
 gradio
 PyMuPDF
 nltk
