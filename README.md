@@ -43,20 +43,22 @@ A PDF document question-answering and summarization assistant powered by large l
 ```
 
 2. Create and activate a Python environment (optional but recommended):
+   ```bash
    python -m venv venv
    source venv/bin/activate  # Linux/macOS
    venv\Scripts\activate     # Windows
-
+   ```
 3. Install dependencies:
+   ```bash
    pip install -r requirements.txt
-
+   ```
    
 ## Usage
 
 Run the app locally with:
-
+```bash
 python main.py
-
+```
 This will start a Gradio web interface. Open the provided local URL in your browser, upload a PDF, and start interacting!
 
 ## Requirements
