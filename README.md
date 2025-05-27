@@ -39,13 +39,13 @@ A PDF document question-answering and summarization assistant powered by large l
 1. Clone the repository:
   
    git clone https://github.com/M-e-h-18/offline-pdf-chatbot.git
-   cd pdf-chatbot
+   offline-pdf-chatbot
 
-2. Create and activate a Python environment (optional but recommended):
+3. Create and activate a Python environment (optional but recommended):
    python -m venv venv
   source venv/bin/activate  # Linux/macOS
   venv\Scripts\activate     # Windows
-3. Install dependencies:
+4. Install dependencies:
    pip install -r requirements.txt
 
    
