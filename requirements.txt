@@ -6,3 +6,4 @@ gradio
 PyMuPDF
 nltk
 bitsandbytes
+accelerate
