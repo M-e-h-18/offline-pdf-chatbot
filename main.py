@@ -100,17 +100,76 @@ def generate_response(prompt, max_new_tokens=150, temperature=0.7):
     return LLM_TOKENIZER.decode(outputs[0][inputs.input_ids.shape[1]:], skip_special_tokens=True)
 
 def summarize_text(text, length="medium"):
+    """Improved summarization that covers the entire document"""
+    # First do extractive summarization to select key content
+    chunks = sentence_aware_chunk_text(text)
+    if not chunks:
+        return "No content to summarize"
+    
+    # Get embeddings for all chunks
+    embeddings = EMBEDDING_MODEL.encode(chunks, convert_to_tensor=True)
+    
+    # Perform clustering to identify diverse content
+    embeddings_np = embeddings.cpu().numpy()
+    k = min(5, len(chunks))  # Number of clusters
+    kmeans = faiss.Kmeans(embeddings_np.shape[1], k)
+    kmeans.train(embeddings_np)
+    _, cluster_indices = kmeans.index.search(embeddings_np, 1)
+    
+    # Select representative chunks from each cluster
+    selected_chunks = []
+    for cluster_id in range(k):
+        cluster_mask = (cluster_indices == cluster_id).flatten()
+        cluster_chunks = [chunks[i] for i in range(len(chunks)) if cluster_mask[i]]
+        if cluster_chunks:
+            # Select the chunk closest to cluster center
+            cluster_center = kmeans.centroids[cluster_id].reshape(1, -1)
+            distances = np.linalg.norm(embeddings_np[cluster_mask] - cluster_center, axis=1)
+            selected_idx = np.argmin(distances)
+            selected_chunks.append(cluster_chunks[selected_idx])
+    
+    # Determine summary length parameters
     length_params = {
         "short": (50, 100),
         "medium": (150, 300),
         "long": (300, 600)
     }.get(length, (150, 300))
-
+    
+    # Prepare the prompt with selected content
+    context = "\n\n".join(selected_chunks)
     prompt = format_prompt(
-        f"Summarize this text concisely:\n\n{text}",
-        "You are an expert at creating concise, accurate summaries."
+        f"Create a comprehensive summary covering all key points from this document content:\n\n{context}",
+        "You are an expert at creating accurate, well-structured summaries that capture all important information."
     )
+    
     return generate_response(prompt, max_new_tokens=length_params[1])
+
+def process_pdf(file, progress=gr.Progress()):
+    if not file:
+        return "No file uploaded", [], {"chunks": None, "index": None}, None
+    try:
+        progress(0.1, "Extracting text")
+        text = extract_text_from_pdf(file)
+        if not text:
+            return "Failed to extract text", [], {"chunks": None, "index": None}, None
+
+        progress(0.3, "Chunking text")
+        chunks = sentence_aware_chunk_text(text)
+
+        progress(0.6, "Building vector store")
+        index = build_vector_store(chunks)
+
+        progress(0.8, "Generating comprehensive summary")
+        summary = summarize_text(text, length="medium")  # Now processes entire document
+
+        return (
+            f"Processed {os.path.basename(file.name)}",
+            [("System", "PDF processed successfully!"), ("System", summary)],
+            {"chunks": chunks, "index": index},
+            None
+        )
+    except Exception as e:
+        return f"Error: {str(e)}", [("System", f"Error: {str(e)}")], {"chunks": None, "index": None}, None
 
 def build_vector_store(chunks):
     embeddings = EMBEDDING_MODEL.encode(chunks, convert_to_tensor=True)
@@ -128,32 +187,7 @@ def query_rag(question, index, chunks, top_k=3):
     )
     return generate_response(prompt)
 
-def process_pdf(file, progress=gr.Progress()):
-    if not file:
-        return "No file uploaded", [], {"chunks": None, "index": None}, None
-    try:
-        progress(0.1, "Extracting text")
-        text = extract_text_from_pdf(file)
-        if not text:
-            return "Failed to extract text", [], {"chunks": None, "index": None}, None
 
-        progress(0.3, "Chunking text")
-        chunks = sentence_aware_chunk_text(text)
-
-        progress(0.6, "Building vector store")
-        index = build_vector_store(chunks)
-
-        progress(0.8, "Generating initial summary")
-        summary = summarize_text("\n\n".join(chunks[:3]))
-
-        return (
-            f"Processed {os.path.basename(file.name)}",
-            [("System", "PDF processed successfully!"), ("System", summary)],
-            {"chunks": chunks, "index": index},
-            None
-        )
-    except Exception as e:
-        return f"Error: {str(e)}", [("System", f"Error: {str(e)}")], {"chunks": None, "index": None}, None
 
 def chat(message, history, doc_state):
     if not message.strip():
