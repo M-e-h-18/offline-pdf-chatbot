@@ -100,47 +100,80 @@ def generate_response(prompt, max_new_tokens=150, temperature=0.7):
     return LLM_TOKENIZER.decode(outputs[0][inputs.input_ids.shape[1]:], skip_special_tokens=True)
 
 def summarize_text(text, length="medium"):
-    """Improved summarization that covers the entire document"""
-    # First do extractive summarization to select key content
-    chunks = sentence_aware_chunk_text(text)
-    if not chunks:
+    """Comprehensive summarization covering all document parts"""
+    # Improved chunking with context preservation
+    sentences = nltk.sent_tokenize(text)
+    if not sentences:
         return "No content to summarize"
     
-    # Get embeddings for all chunks
-    embeddings = EMBEDDING_MODEL.encode(chunks, convert_to_tensor=True)
+    # Create chunks with better context handling
+    chunks = []
+    current_chunk = []
+    current_len = 0
     
-    # Perform clustering to identify diverse content
-    embeddings_np = embeddings.cpu().numpy()
-    k = min(5, len(chunks))  # Number of clusters
-    kmeans = faiss.Kmeans(embeddings_np.shape[1], k)
-    kmeans.train(embeddings_np)
-    _, cluster_indices = kmeans.index.search(embeddings_np, 1)
+    for i, sentence in enumerate(sentences):
+        if current_len + len(sentence) <= CHUNK_TARGET_CHAR_LEN or not current_chunk:
+            current_chunk.append(sentence)
+            current_len += len(sentence)
+        else:
+            # Ensure we don't break in middle of important context
+            if i < len(sentences) - 1 and any(c in sentence for c in [":", ";", "-"]):
+                current_chunk.append(sentence)
+                current_len += len(sentence)
+            else:
+                chunks.append(" ".join(current_chunk))
+                # Carry over 3 sentences for better context
+                current_chunk = current_chunk[-3:] + [sentence]
+                current_len = sum(len(s) for s in current_chunk)
     
-    # Select representative chunks from each cluster
+    if current_chunk:
+        chunks.append(" ".join(current_chunk))
+    
+    if not chunks:
+        return "No content to summarize"
+
+    # Improved content selection
     selected_chunks = []
-    for cluster_id in range(k):
-        cluster_mask = (cluster_indices == cluster_id).flatten()
-        cluster_chunks = [chunks[i] for i in range(len(chunks)) if cluster_mask[i]]
-        if cluster_chunks:
-            # Select the chunk closest to cluster center
-            cluster_center = kmeans.centroids[cluster_id].reshape(1, -1)
-            distances = np.linalg.norm(embeddings_np[cluster_mask] - cluster_center, axis=1)
-            selected_idx = np.argmin(distances)
-            selected_chunks.append(cluster_chunks[selected_idx])
     
-    # Determine summary length parameters
-    length_params = {
-        "short": (50, 100),
-        "medium": (150, 300),
-        "long": (300, 600)
-    }.get(length, (150, 300))
+    # Always include first and last chunks
+    selected_chunks.extend([chunks[0], chunks[-1]])
     
-    # Prepare the prompt with selected content
+    # Include middle chunk
+    middle_idx = len(chunks) // 2
+    selected_chunks.append(chunks[middle_idx])
+    
+    # Include additional chunks from key sections
+    for i in [1, -2, middle_idx-1, middle_idx+1]:
+        if 0 <= i < len(chunks):
+            selected_chunks.append(chunks[i])
+    
+    # Remove duplicates while preserving order
+    seen = set()
+    selected_chunks = [chunk for chunk in selected_chunks if not (chunk in seen or seen.add(chunk))]
+    
+    # Enhanced prompt for completeness
     context = "\n\n".join(selected_chunks)
     prompt = format_prompt(
-        f"Create a comprehensive summary covering all key points from this document content:\n\n{context}",
-        "You are an expert at creating accurate, well-structured summaries that capture all important information."
+        f"Create a comprehensive, well-structured summary covering ALL key points from this document. "
+        f"Ensure you include information from ALL sections (beginning, middle, and end). "
+        f"Provide complete sentences and thorough coverage of:\n\n"
+        f"1. Main concepts and definitions\n"
+        f"2. Key processes and methodologies\n"
+        f"3. Important examples and applications\n"
+        f"4. Comparisons and contrasts\n"
+        f"5. Conclusions and final points\n\n"
+        f"Document Content:\n{context}",
+        "You are an expert technical summarizer who creates accurate, complete summaries "
+        "that capture all essential information from every part of a document. "
+        "Never leave sentences incomplete or skip important details."
     )
+    
+    # Adjust length parameters
+    length_params = {
+        "short": (100, 200),
+        "medium": (300, 600),
+        "long": (700, 1200)
+    }.get(length, (300, 600))
     
     return generate_response(prompt, max_new_tokens=length_params[1])
 
@@ -232,4 +265,4 @@ with gr.Blocks(title="PDF Chat Assistant") as app:
     )
 
 if __name__ == "__main__":
-    app.launch(server_name="0.0.0.0", server_port=7860)
+    app.launch(server_port=7860)
