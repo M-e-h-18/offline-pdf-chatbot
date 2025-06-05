@@ -206,10 +206,6 @@ DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 - **RAM**: 16GB or higher
 - **Storage**: SSD for faster model loading
 
-## 🤝 Contributing
-
-Contributions are welcome! Please feel free to submit issues, feature requests, or pull requests.
-
 ### Development Setup
 1. Fork the repository
 2. Create a feature branch
