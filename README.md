@@ -28,7 +28,46 @@ A comprehensive PDF document analysis tool that combines advanced AI capabilitie
 - **GPU acceleration** with CUDA support
 - **Robust error handling** with graceful degradation
 
+
 ## 🏗️ Architecture Overview
+
+### 📌 Processing Pipeline
+
+1. **Input Stage**
+   - PDF upload through Gradio interface
+   - Automatic MIME type validation
+   - Parallel processing for multiple files
+
+2. **Text Extraction**
+   ```mermaid
+   graph TD
+     A[PDF Input] --> B{Native Text?}
+     B -->|Yes| C[PyMuPDF Extraction]
+     B -->|No| D[PDF2Image Conversion]
+     D --> E[Tesseract OCR Processing]
+     C & E --> F[Text Normalization]
+   ```
+
+3. **Analysis Phase**
+   - For Comparisons:
+     - Dual document alignment
+     - Three-level diff analysis (character/word/line)
+     - Hybrid similarity scoring
+   - For Chat/Summarization:
+     - Semantic chunking with overlap
+     - Hierarchical embedding generation
+     - Context-aware retrieval
+
+4. **AI Integration**
+   - Dynamic model loading (quantized)
+   - Adaptive context window management
+   - Generation with safety filters
+
+5. **Output Generation**
+   - Interactive visualizations
+   - Structured report formatting
+   - Progressive response streaming
+
 
 ### 1. **Document Processing Pipeline**
 - **Text Extraction**: PyMuPDF (`fitz`) with OCR fallback using `pytesseract`
