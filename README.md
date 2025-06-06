@@ -113,8 +113,8 @@ brew install poppler tesseract
 
 1. **Clone the repository:**
 ```bash
-git clone https://github.com/your-username/pdf-analysis-suite.git
-cd pdf-analysis-suite
+git clone https://github.com/M-e-h-18/offline-pdf-chatbot.git
+cd offline-pdf-chatbot
 ```
 
 2. **Create and activate a virtual environment:**
