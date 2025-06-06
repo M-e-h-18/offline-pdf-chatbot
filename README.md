@@ -229,7 +229,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - **[BAAI](https://huggingface.co/BAAI)** - BGE embedding models
 
 ##Kaggle code
-
+```python
 !pip install --quiet sentence-transformers transformers bitsandbytes accelerate gradio pytesseract pdf2image nltk faiss-cpu PyMuPDF
 !apt-get install -y -qq poppler-utils tesseract-ocr
 
@@ -874,3 +874,4 @@ with gr.Blocks(title="PDF Analysis Suite", theme=gr.themes.Soft()) as app:
 # Launch the app
 if __name__ == "__main__":
     app.launch()
+'''
